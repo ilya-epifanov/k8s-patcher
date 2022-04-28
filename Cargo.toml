@@ -1,6 +1,6 @@
 [package]
 name = "k8s-patcher"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Ilya Epifanov <elijah.epifanov@gmail.com>"]
 keywords = ["kubernetes", "k8s"]
 repository = "https://github.com/ilya-epifanov/k8s-patcher"

@@ -988,7 +988,7 @@ dependencies = [
 
 [[package]]
 name = "k8s-patcher"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "actix-rt 2.2.0",
  "actix-web",
