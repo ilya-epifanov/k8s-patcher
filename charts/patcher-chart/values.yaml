@@ -1,0 +1,16 @@
+image:
+  # -- Image repository
+  repository: smartislav/k8s-patcher
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- if set, override the image tag whose default is the chart appVersion.
+  tag: ""
+
+# -- Image pull secrets
+imagePullSecrets: []
+
+# -- Desired number of pods
+replicaCount: 1
+
+# -- Set higher levels for more verbose logging
+logLevel: debug

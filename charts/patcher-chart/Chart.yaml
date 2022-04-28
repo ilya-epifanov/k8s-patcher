@@ -1,0 +1,10 @@
+apiVersion: v2
+name: patcher
+description: A Helm chart for the pod patcher mutating admission webhook
+version: 0.1.0
+appVersion: 0.1.0
+keywords: []
+home: https://github.com/ilya-epifanov/k8s-patcher
+maintainers:
+  - name: Ilya Epifanov
+    email: elijah.epifanov@gmail.com

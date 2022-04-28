@@ -1,0 +1,32 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: patcher-maw
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/patcher-maw-certificate
+webhooks:
+  - name: "patcher-maw.{{ .Release.Namespace }}.svc"
+    clientConfig:
+      service:
+        name: patcher-maw
+        namespace: {{ .Release.Namespace | quote }}
+        port: 443
+        path: "/mutate"
+    failurePolicy: Fail
+    namespaceSelector:
+      matchExpressions:
+      - key: name
+        operator: NotIn
+        values: [{{ .Release.Namespace | quote }}]
+    rules:
+      - operations:
+          - "CREATE"
+        apiGroups:
+          - ""
+        apiVersions:
+          - "v1"
+        resources:
+          - "pods"
+    sideEffects: None
+    admissionReviewVersions: ["v1beta1", "v1"]

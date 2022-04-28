@@ -1,0 +1,52 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: patcher-maw
+  namespace: {{ .Release.Namespace | quote }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: patcher-maw
+  template:
+    metadata:
+      labels:
+        app: patcher-maw
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: certs
+          secret:
+            secretName: patcher-maw-certificate
+      containers:
+        - name: patcher-maw
+          image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - mountPath: /certs
+              name: certs
+          resources:
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+          env:
+            - name: RUST_LOG
+              value: actix_web=warn,patcher_maw={{ .Values.logLevel }}
+          ports:
+            - containerPort: 443
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: patcher-maw
+  namespace: {{ .Release.Namespace | quote }}
+spec:
+  selector:
+    app: patcher-maw
+  ports:
+    - port: 443
+      targetPort: 8443
