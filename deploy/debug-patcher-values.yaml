@@ -1,0 +1,12 @@
+---
+namespaceSelector:
+  matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: NotIn
+      values: ["ignored"]
+
+objectSelector:
+  matchExpressions:
+    - key: app
+      operator: NotIn
+      values: ["ignored"]

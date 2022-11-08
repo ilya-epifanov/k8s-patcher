@@ -48,6 +48,52 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: ignored
+spec:
+  selector:
+    matchLabels:
+      app: ignored
+  template:
+    metadata:
+      labels:
+        app: ignored
+      annotations:
+        ilya-epifanov.github.io/patcher.patches: |
+          - op: add
+            path: /spec/containers/0/volumeMounts
+            value:
+              - name: spark-conf-volume
+                mountPath: /spark/conf
+              - name: hadoop-conf-volume
+                mountPath: /spark/hadoop
+              - name: job-specific-conf
+                mountPath: /job-specific-conf
+          - op: add
+            path: /spec/volumes
+            value:
+              - name: spark-conf-volume
+                emptyDir: {}
+              - name: hadoop-conf-volume
+                emptyDir: {}
+              - name: job-specific-conf
+                emptyDir: {}
+    spec:
+      containers:
+        - name: ignored
+          image: "busybox:1.29"
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - sleep
+          args:
+            - "1000"
+          resources:
+            limits:
+              cpu: 10m
+              memory: 16Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: unpatched
 spec:
   selector:
