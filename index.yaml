@@ -15,6 +15,19 @@ entries:
     - https://github.com/ilya-epifanov/k8s-patcher/releases/download/patcher-chart-0.2.0/patcher-0.2.0.tgz
     version: 0.2.0
   - apiVersion: v2
+    appVersion: 0.2.0
+    created: "2022-11-08T13:57:33.195875349Z"
+    description: A Helm chart for the pod patcher mutating admission webhook
+    digest: 469fac102e9c65a3804840deaa2cd8b686ac820014ee2aefaad46f4b6291dc7e
+    home: https://github.com/ilya-epifanov/k8s-patcher
+    maintainers:
+    - email: elijah.epifanov@gmail.com
+      name: Ilya Epifanov
+    name: patcher
+    urls:
+    - https://github.com/ilya-epifanov/k8s-patcher/releases/download/patcher-chart-0.2.0-1/patcher-0.2.0-1.tgz
+    version: 0.2.0-1
+  - apiVersion: v2
     appVersion: 0.1.1
     created: "2022-04-29T00:06:48.814863764Z"
     description: A Helm chart for the pod patcher mutating admission webhook
@@ -27,4 +40,4 @@ entries:
     urls:
     - https://github.com/ilya-epifanov/k8s-patcher/releases/download/patcher-chart-0.1.2/patcher-0.1.2.tgz
     version: 0.1.2
-generated: "2022-11-08T00:22:47.930309562Z"
+generated: "2022-11-08T13:57:33.195893749Z"
