@@ -3,7 +3,7 @@ image:
   repository: smartislav/k8s-patcher
   # -- Image pull policy
   pullPolicy: IfNotPresent
-  # -- if set, override the image tag whose default is the chart appVersion.
+  # -- If set, override the image tag whose default is the chart appVersion
   tag: ""
 
 # -- Image pull secrets
@@ -14,3 +14,16 @@ replicaCount: 1
 
 # -- Set higher levels for more verbose logging
 logLevel: debug
+
+# -- Whether or not to fail pod scheduling when patcher is unavailable or returns an error
+failurePolicy: Fail
+
+namespaceSelector:
+  # -- Additional namespace selector match expressions for the admission controller
+  matchExpressions: ~
+
+# -- Object selector for the admission controller
+objectSelector: ~
+
+# -- Webhook timeout
+timeoutSeconds: 1

@@ -13,12 +13,21 @@ webhooks:
         namespace: {{ .Release.Namespace | quote }}
         port: 443
         path: "/mutate"
-    failurePolicy: Fail
+    failurePolicy: {{ .Values.failurePolicy }}
+    timeoutSeconds: {{ .Values.timeoutSeconds }}
+    reinvocationPolicy: Never
     namespaceSelector:
       matchExpressions:
-      - key: name
-        operator: NotIn
-        values: [{{ .Release.Namespace | quote }}]
+        - key: name
+          operator: NotIn
+          values: [{{ .Release.Namespace | quote }}]
+      {{- with .Values.namespaceSelector.matchExpressions }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.objectSelector }}
+    objectSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
     rules:
       - operations:
           - "CREATE"

@@ -1,45 +1,40 @@
-use actix_web::{get, http, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use std::convert::TryInto;
+use std::net::SocketAddr;
+use std::str::FromStr;
+use std::time::Duration;
+
 use anyhow::anyhow;
 use anyhow::Result;
-use itertools::Itertools;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::routing::get;
+use axum::routing::post;
+use axum::Json;
+use axum::Router;
+use axum_prometheus::PrometheusMetricLayer;
+use axum_server::tls_rustls::RustlsConfig;
 use json_patch::Patch;
-use kube::core::{
-    admission::{AdmissionRequest, AdmissionResponse, AdmissionReview},
-    DynamicObject,
-};
-use rustls::internal::pemfile::{certs, rsa_private_keys};
-use rustls::{NoClientAuth, ServerConfig};
+use kube::core::admission::AdmissionRequest;
+use kube::core::admission::AdmissionResponse;
+use kube::core::admission::AdmissionReview;
+use kube::core::DynamicObject;
 use serde_json::json;
-use std::convert::TryInto;
-use std::fs::File;
-use std::io::BufReader;
-use std::net::ToSocketAddrs;
 use tracing::debug;
-use tracing::{error, info, warn};
+use tracing::error;
+use tracing::info;
+use tracing::warn;
 use tracing_subscriber::filter::EnvFilter;
 
-#[get("/health")]
-async fn health() -> impl Responder {
-    HttpResponse::Ok()
-        .header(http::header::CONTENT_TYPE, "application/json")
-        .json(json!({"message": "ok"}))
+const TLS_CRT_FILE: &str = "/certs/tls.crt";
+const TLS_KEY_FILE: &str = "/certs/tls.key";
+
+async fn health() -> impl IntoResponse {
+    (StatusCode::OK, Json(json!({"message": "ok"})))
 }
 
-#[post("/mutate")]
-async fn mutate(
-    reqst: HttpRequest,
-    body: web::Json<AdmissionReview<DynamicObject>>,
-) -> impl Responder {
-    if let Some(content_type) = reqst.head().headers.get("content-type") {
-        if content_type != "application/json" {
-            let msg = format!("invalid content-type: {:?}", content_type);
-            warn!("Warn: {}, Code: {}", msg, http::StatusCode::BAD_REQUEST);
-            return HttpResponse::BadRequest().json(msg);
-        }
-    }
-
+async fn mutate(Json(request): Json<AdmissionReview<DynamicObject>>) -> impl IntoResponse {
     let res = (move || -> Result<AdmissionResponse, anyhow::Error> {
-        let req: AdmissionRequest<_> = body.into_inner().try_into()?;
+        let req: AdmissionRequest<_> = request.try_into()?;
         let mut resp = AdmissionResponse::from(&req);
 
         let obj = req
@@ -52,11 +47,23 @@ async fn mutate(
                 .get("ilya-epifanov.github.io/patcher.patches")
                 .map(ToOwned::to_owned)
         })();
+        let namespace = obj
+            .metadata
+            .namespace
+            .as_ref()
+            .map(String::as_str)
+            .unwrap_or_default();
+        let name = obj
+            .metadata
+            .name
+            .as_ref()
+            .map(String::as_str)
+            .unwrap_or_default();
         let patches_str = if let Some(patches_str) = patches_str {
-            debug!("Found patches, applying");
+            info!("found patches for pod {}/{}, applying", namespace, name);
             patches_str
         } else {
-            debug!("No patches found");
+            debug!("no patches found for pod {}/{}, ignoring", namespace, name);
             return Ok(resp);
         };
 
@@ -67,39 +74,61 @@ async fn mutate(
     })();
 
     return match res {
-        Ok(resp) => HttpResponse::Ok().json(resp.into_review()),
+        Ok(resp) => (StatusCode::OK, Json(resp.into_review())),
         Err(e) => {
             error!("invalid request: {}", e.to_string());
-            HttpResponse::InternalServerError()
-                .json(&AdmissionResponse::invalid(e.to_string()).into_review())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(AdmissionResponse::invalid(e.to_string()).into_review()),
+            )
         }
     };
 }
 
-#[actix_web::main]
+async fn reload(config: RustlsConfig) {
+    loop {
+        tokio::time::sleep(Duration::from_secs(60 * 10)).await;
+        debug!("reloading rustls configuration");
+
+        let res = config
+            .reload_from_pem_file(TLS_CRT_FILE, TLS_KEY_FILE)
+            .await;
+
+        match res {
+            Ok(()) => debug!("rustls configuration reloaded"),
+            Err(e) => warn!(
+                "can't reload rustls configuration, will try next time: {}",
+                e
+            ),
+        };
+    }
+}
+
+#[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let filter = EnvFilter::from_default_env();
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
-    let addrs = "0.0.0.0:8443".to_socket_addrs()?.collect_vec();
+    let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
-    info!("Started http server: {:?}", &addrs);
-    let mut config = ServerConfig::new(NoClientAuth::new());
+    let addr = SocketAddr::from_str("0.0.0.0:8443")?;
 
-    let cert_file = &mut BufReader::new(File::open("/certs/tls.crt")?);
-    let cert_chain = certs(cert_file).map_err(|_| anyhow::anyhow!("can't read certificates"))?;
+    let config = RustlsConfig::from_pem_file(TLS_CRT_FILE, TLS_KEY_FILE).await?;
 
-    let key_file = &mut BufReader::new(File::open("/certs/tls.key")?);
-    let mut keys =
-        rsa_private_keys(key_file).map_err(|_| anyhow::anyhow!("can't read private keys"))?;
+    tokio::spawn(reload(config.clone()));
 
-    config.set_single_cert(cert_chain, keys.swap_remove(0))?;
+    let router = Router::new()
+        .route("/health", get(health))
+        .route("/mutate", post(mutate))
+        .route("/metrics", get(|| async move { metric_handle.render() }))
+        .layer(prometheus_layer);
 
-    let router = || App::new().service(mutate).service(health);
+    info!("starting http server: {:?}", &addr);
 
-    HttpServer::new(router)
-        .bind_rustls(&addrs[..], config)?
-        .run()
-        .await?;
+    axum_server::bind_rustls(addr, config)
+        .serve(router.into_make_service())
+        .await
+        .unwrap();
+
     Ok(())
 }

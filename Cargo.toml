@@ -1,6 +1,6 @@
 [package]
 name = "k8s-patcher"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Ilya Epifanov <elijah.epifanov@gmail.com>"]
 keywords = ["kubernetes", "k8s"]
 repository = "https://github.com/ilya-epifanov/k8s-patcher"
@@ -8,8 +8,10 @@ edition = "2021"
 
 [dependencies]
 kube = { version = "0.71", default-features = false, features = ["admission", "rustls-tls"] }
-actix-rt = "2"
-actix-web = { version = "3", features = ["rustls"] }
+axum = "0.5"
+axum-server = { version = "0.4", features = ["tls-rustls"] }
+axum-prometheus = "0.1"
+tokio = { version = "1", features = ["rt", "macros"] }
 anyhow = "1"
 rustls = "0.18"
 k8s-openapi = { version = "0.14", features = ["v1_22"] }
